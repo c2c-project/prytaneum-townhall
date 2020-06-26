@@ -6,6 +6,13 @@ declare global {
             ORIGIN?: string;
             DB_URL?: string;
         }
+        interface User {
+            _id: string;
+            name: {
+                first: string;
+                last: string;
+            };
+        }
     }
 }
 
