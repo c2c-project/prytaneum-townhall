@@ -5,6 +5,7 @@ declare global {
             PORT?: string;
             ORIGIN?: string;
             DB_URL?: string;
+            AMQP_URL?: string;
         }
         interface User {
             _id: string;

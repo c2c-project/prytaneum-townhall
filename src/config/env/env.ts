@@ -8,6 +8,7 @@ export const defaults = {
     PORT: '3001',
     ORIGIN: 'localhost',
     DB_URL: 'mongodb://localhost:27017',
+    AMQP_URL: 'amqp://rabbitmq:5672',
 } as Readonly<Required<NodeJS.ProcessEnv>>;
 
 export function set(key: keyof NodeJS.ProcessEnv): string {
@@ -31,6 +32,7 @@ const resilientEnv = {
     PORT: set('PORT'),
     ORIGIN: set('ORIGIN'),
     DB_URL: set('DB_URL'),
+    AMQP_URL: set('AMQP_URL'),
 } as Required<NodeJS.ProcessEnv>;
 
 export default resilientEnv as Readonly<Required<NodeJS.ProcessEnv>>;

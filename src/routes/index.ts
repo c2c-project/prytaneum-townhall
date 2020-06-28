@@ -1,16 +1,14 @@
 import express from 'express';
 import { ObjectID } from 'mongodb';
 
-import Townhalls, { TownhallForm } from 'db/townhalls';
+import Collections, { TownhallForm } from 'db';
 import { createTownhall, updateTownhall } from 'modules/townhalls';
 
 const router = express.Router();
 
-router.get('/hello-world', (req, res) => res.send('Hello world!'));
-
 router.get('/', async (req, res, next) => {
     try {
-        const townhalls = await Townhalls.find();
+        const townhalls = await Collections.Townhalls().find().toArray();
         res.send(townhalls);
     } catch (e) {
         next(e);
@@ -23,7 +21,9 @@ router.get('/:_id', async (req, res, next) => {
         if (!_id) {
             throw new Error('No townhall id provided');
         }
-        const townhalls = await Townhalls.find({ _id: new ObjectID(_id) });
+        const townhalls = await Collections.Townhalls().findOne({
+            _id: new ObjectID(_id),
+        });
         res.send(townhalls);
     } catch (e) {
         next(e);
@@ -42,6 +42,7 @@ router.post('/create', async (req, res, next) => {
         await createTownhall(form, user);
         res.sendStatus(200);
     } catch (e) {
+        console.log(e);
         next(e);
     }
 });

@@ -1,4 +1,4 @@
-import express, { Express } from 'express';
+import express, { Express, Response, Request, NextFunction } from 'express';
 import createError from 'http-errors';
 import config from 'config/app';
 import env from 'config/env';
@@ -11,10 +11,21 @@ function initApp(): Express {
         app.get('/', (req, res) => res.sendStatus(200));
     }
     app.use(routes);
+
     app.use((req, res, next) => {
         next(createError(404));
     });
     // TODO: more robust error handling
+    app.use(
+        (
+            error: Error & { status?: number },
+            req: Request,
+            res: Response,
+            next: NextFunction
+        ) => {
+            res.sendStatus(error.status || 500);
+        }
+    );
     return app;
 }
 
