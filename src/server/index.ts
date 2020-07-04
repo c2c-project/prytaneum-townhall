@@ -2,6 +2,7 @@ import app from 'app';
 import { connect as connectToDb } from 'db';
 import { connect as connectToRabbitMq } from 'lib/rabbitmq';
 import env from 'config/env';
+import log from 'lib/log';
 
 async function makeServer() {
     try {
@@ -9,6 +10,7 @@ async function makeServer() {
             this is so that we can guarantee we are connected to the db
             before the server exposes itself on a port
         */
+        log.initStatus(['rabbitmq', 'mongodb']);
         await connectToDb();
         await connectToRabbitMq();
         app.listen(Number(env.PORT), env.ORIGIN);
@@ -24,3 +26,4 @@ async function makeServer() {
 
 // eslint-disable-next-line no-void
 void makeServer();
+

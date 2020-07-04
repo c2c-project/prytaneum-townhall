@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb';
 
 import env from 'config/env';
 import net from 'lib/net';
+import log from 'lib/log';
 import { TownhallForm } from 'db';
 
 type ServerEvent = 'townhall-created' | 'townhall-updated' | 'townhall-deleted';
@@ -27,10 +28,21 @@ export const transformers = {
 };
 
 let connection: ampq.Connection;
-
-export const connect = net.buildRetryFn(async (): Promise<void> => {
-    connection = await ampq.connect(env.AMQP_URL);
-}, 'rabbitmq');
+export const connect = net.buildRetryFn(
+    async (): Promise<void> => {
+        connection = await ampq.connect(env.AMQP_URL);
+        connection.on('close', () => {
+            log.status('rabbitmq', 'DISCONNECTED');
+            setTimeout(() => {
+                // eslint-disable-next-line no-void
+                void connect();
+            }, 1000);
+        });
+    },
+    {
+        key: 'rabbitmq',
+    }
+);
 
 export async function emit<T = TownhallEmit>(
     event: 'townhall-created' | 'townhall-updated',

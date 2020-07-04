@@ -6,7 +6,7 @@ import { connectToMongo } from './mongo';
 /**
  * re-export anything from the collection files
  */
-export { close } from './mongo';
+export { close, mongoRetry } from './mongo';
 export { TownhallDoc, TownhallForm, TownhallSettings } from './townhalls';
 
 /**
