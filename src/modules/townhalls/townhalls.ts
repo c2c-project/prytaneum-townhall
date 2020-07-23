@@ -64,23 +64,12 @@ export async function updateTownhall(
 }
 
 // TODO: extend this to write to a trash collection rather than actually delete
-export async function deleteTownhall(
-    townhallId: string,
-    user: NodeJS.User
-): Promise<void> {
-    const { deletedCount } = await Collections.Townhalls().deleteOne({
+export function deleteTownhall(townhallId: string) {
+    return Collections.Townhalls().deleteOne({
         _id: new ObjectID(townhallId),
     });
-    if (!deletedCount) {
-        throw new Error('Unable to delete townhall');
-    }
+}
 
-    if (deletedCount === 1) {
-        await emit('townhall-deleted', { _id: new ObjectID(townhallId) });
-    } else if (deletedCount < 1) {
-        throw new Error('Unable to delete townhall');
-    } else if (deletedCount > 1) {
-        // TODO: make this more helpful
-        throw new Error('Internal Error: Deleted too many??');
-    }
+export function getTownhall(townhallId: string) {
+    return Collections.Townhalls().findOne({ _id: new ObjectID(townhallId) });
 }

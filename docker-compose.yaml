@@ -2,6 +2,7 @@ version: '3.8'
 services:
     townhall-service: # rename this to something like <yourservicename>-service
         build: .
+        image: developmentbydavid/prytaneum-townhall:beta
         volumes:
             - ./src:/usr/app/src
         ports:
