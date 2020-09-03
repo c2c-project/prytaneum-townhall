@@ -33,14 +33,11 @@ router.get('/', async (req, res, next) => {
 /**
  * @description get a specific townhall
  */
-router.get('/:_id', async (req, res, next) => {
+router.get('/:townhallId', async (req, res, next) => {
     try {
-        const { _id } = req.params;
-        if (!_id) {
-            throw new Error('No townhall id provided');
-        }
+        const { townhallId } = req.params as { townhallId: string };
         const townhalls = await Collections.Townhalls().findOne({
-            _id: new ObjectID(_id),
+            _id: new ObjectID(townhallId),
         });
         res.send(townhalls);
     } catch (e) {
@@ -81,7 +78,8 @@ router.post('/:townhallId/update', async (req, res, next) => {
         if (!form || !user || !townhallId) {
             throw new Error('Invalid body params');
         }
-        await updateTownhall(form, user, townhallId);
+        const { modifiedCount } = await updateTownhall(form, user, townhallId);
+        if (modifiedCount !== 1) throw new Error('Unable to find townhall');
         res.sendStatus(200);
     } catch (e) {
         next(e);

@@ -4,6 +4,6 @@ import townhallRoutes from './townhalls';
 
 const router = express.Router();
 
-router.use('/townhalls/', townhallRoutes);
+router.use('/townhalls', townhallRoutes);
 
 export default router;

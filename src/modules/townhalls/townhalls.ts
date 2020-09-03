@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import { ObjectID } from 'mongodb';
 
 import { emit, transformers } from 'lib/rabbitmq';
@@ -33,11 +34,8 @@ export async function updateTownhall(
     form: TownhallForm,
     user: NodeJS.User,
     townhallId: string
-): Promise<void> {
-    const {
-        modifiedCount,
-        upsertedId,
-    } = await Collections.Townhalls().updateOne(
+) {
+    return Collections.Townhalls().updateOne(
         { _id: new ObjectID(townhallId) },
         {
             $set: {
@@ -50,17 +48,6 @@ export async function updateTownhall(
             upsert: false,
         }
     );
-    if (modifiedCount === 1) {
-        await emit(
-            'townhall-updated',
-            transformers.Townhall(form, upsertedId._id)
-        );
-    } else if (modifiedCount > 1) {
-        // TODO: make this more helpful
-        throw new Error('Internal Error: Modified too many??');
-    } else if (modifiedCount < 1) {
-        throw new Error('Unable to update townhall');
-    }
 }
 
 // TODO: extend this to write to a trash collection rather than actually delete
