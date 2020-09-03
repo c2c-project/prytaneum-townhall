@@ -2,7 +2,8 @@
 import { ObjectID } from 'mongodb';
 
 import { emit, transformers } from 'lib/rabbitmq';
-import Collections, { TownhallForm, TownhallSettings } from 'db';
+import Collections from 'db';
+import { TownhallForm, TownhallSettings } from 'types';
 
 export async function createTownhall(
     form: TownhallForm,
@@ -59,4 +60,14 @@ export function deleteTownhall(townhallId: string) {
 
 export function getTownhall(townhallId: string) {
     return Collections.Townhalls().findOne({ _id: new ObjectID(townhallId) });
+}
+
+export async function getBillInfo(townhallId: string) {
+    const townhall = await Collections.Townhalls().findOne({
+        _id: new ObjectID(townhallId),
+    });
+    if (!townhall) throw new Error('Invalid Townhall ID');
+
+    // eventually after doing some other requests
+    return {};
 }

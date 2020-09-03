@@ -1,11 +1,12 @@
 import express from 'express';
 import { ObjectID } from 'mongodb';
 
-import Collections, { TownhallForm, QuestionForm } from 'db';
+import Collections from 'db';
 import {
     createTownhall,
     updateTownhall,
     deleteTownhall,
+    getBillInfo,
 } from 'modules/townhalls';
 import {
     askQuestion,
@@ -15,6 +16,7 @@ import {
     getQuestions,
     getQuestion,
 } from 'modules/questions';
+import { TownhallForm, QuestionForm } from 'types';
 
 const router = express.Router();
 
@@ -199,6 +201,18 @@ router.get('/:townhallId/questions/:questionId', async (req, res, next) => {
         };
         const question = await getQuestion(townhallId, questionId);
         res.status(200).send(question);
+    } catch (e) {
+        next(e);
+    }
+});
+
+router.get('/:townhallId/bills', async (req, res, next) => {
+    try {
+        const { townhallId } = req.params as {
+            townhallId: string;
+        };
+        const billInfo = await getBillInfo(townhallId);
+        res.status(200).send(billInfo);
     } catch (e) {
         next(e);
     }

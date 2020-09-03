@@ -1,15 +1,14 @@
 import { Collection } from 'mongodb';
 
-import initTownhalls, { TownhallDoc } from './townhalls';
-import initQuestions, { QuestionDoc } from './questions';
+import { TownhallDoc, QuestionDoc } from 'types';
+import initTownhalls from './townhalls';
+import initQuestions from './questions';
 import { connectToMongo } from './mongo';
 
 /**
  * re-export anything from the collection files
  */
 export { close, mongoRetry } from './mongo';
-export { TownhallDoc, TownhallForm, TownhallSettings } from './townhalls';
-export { QuestionDoc, QuestionForm } from './questions';
 
 /**
  * declare collections here, they won't be undefined before being called
