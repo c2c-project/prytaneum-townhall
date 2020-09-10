@@ -84,43 +84,36 @@ export async function getBillInfo(townhallId: string) {
         // eslint-disable-next-line no-await-in-loop
         allBills.push(await getBill(billUrls[i]));
     }
-    let houseVote = '';
-    let senateVote = '';
 
-    let houseObj;
-    let senateObj;
     for (let i = 0; i < allBills.length; i += 1) {
-        if (allBills[i].votes.length > 0) {
-            houseObj = allBills[i].votes.find((o) => o.chamber === 'House');
-            senateObj = allBills[i].votes.find((o) => o.chamber === 'Senate');
+        let houseVote = '';
+        let senateVote = '';
+        const houseObj = allBills[i].votes.find((o) => o.chamber === 'House');
+        const senateObj = allBills[i].votes.find((o) => o.chamber === 'Senate');
+        if (houseObj !== undefined) {
+            // eslint-disable-next-line no-await-in-loop
+            houseVote = await getVoteResult(
+                houseObj?.api_url,
+                townhall?.form.speaker
+            );
+        }
 
-            if (houseObj !== undefined) {
-                // eslint-disable-next-line no-await-in-loop
-                houseVote = await getVoteResult(
-                    houseObj?.api_url,
-                    townhall?.form.speaker
-                );
-            }
+        if (senateObj !== undefined) {
+            // eslint-disable-next-line no-await-in-loop
+            senateVote = await getVoteResult(
+                senateObj?.api_url,
+                townhall?.form.speaker
+            );
+        }
 
-            if (senateObj !== undefined) {
-                // eslint-disable-next-line no-await-in-loop
-                senateVote = await getVoteResult(
-                    senateObj?.api_url,
-                    townhall?.form.speaker
-                );
-            }
-         
-
-            if (houseVote !== '') {
-                allBills[i].vote_position = houseVote;
-            } else if (senateVote !== '') {
-                allBills[i].vote_position = senateVote;
-            } else {
-                allBills[i].vote_position = 'Not Found';
-            }
+        if (houseVote !== '') {
+            allBills[i].vote_position = houseVote;
+        } else if (senateVote !== '') {
+            allBills[i].vote_position = senateVote;
+        } else {
+            allBills[i].vote_position = 'Not Found';
         }
     }
 
-    // eventually after doing some other requests
     return allBills;
 }
