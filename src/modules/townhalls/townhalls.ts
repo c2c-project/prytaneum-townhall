@@ -75,9 +75,7 @@ export async function getBillInfo(townhallId: string) {
 
     if (!townhall) throw new Error('Invalid Townhall ID');
 
-    let subject = '';
-
-    subject = await getSubjectUrl(townhall?.form.topic);
+    const subject = await getSubjectUrl(townhall?.form.topic);
     const billUrls: string[] = await getBillUrls(subject);
     const allBills: Bill[] = [];
     for (let i = 0; i < billUrls.length; i += 1) {

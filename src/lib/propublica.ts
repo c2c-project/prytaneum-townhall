@@ -15,7 +15,6 @@ type Vote = {
     api_url: string;
 };
 
-
 export function getSubjectUrl(topic: string): Promise<string> {
     const apiUrl = `https://api.propublica.org/congress/v1/bills/subjects/search.json?query=${topic}`;
     return axios
@@ -67,7 +66,12 @@ export function getBillUrls(subjectUrl: string): Promise<string[]> {
 }
 export function getBill(
     billUrl: string
-): Promise<{ summary: string; congressGovLink: string; votes: Vote[], vote_position: string }> {
+): Promise<{
+        summary: string;
+        congressGovLink: string;
+        votes: Vote[];
+        vote_position: string;
+    }> {
     const billInfo = {} as Promise<{
         summary: string;
         congressGovLink: string;
@@ -81,13 +85,13 @@ export function getBill(
                 'X-API-Key': process.env.PROPUBLICA_API_KEY,
             },
         })
-        .then(async (response) => {
+        .then((response) => {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (response.data.status === 'OK') {
-                (await billInfo).summary = response.data.results[0].summary;
-                (await billInfo).congressGovLink =
+                billInfo.summary = response.data.results[0].summary;
+                billInfo.congressGovLink =
                     response.data.results[0].congressdotgov_url;
-                (await billInfo).votes = response.data.results[0].votes;
+                billInfo.votes = response.data.results[0].votes;
             }
             return billInfo;
         })
@@ -96,7 +100,8 @@ export function getBill(
         });
 }
 export function getVoteResult(
-    voteUrl: string | any, speaker: string,
+    voteUrl: string,
+    speaker: string
 ): Promise<string> {
     let vote = '';
 
@@ -109,11 +114,20 @@ export function getVoteResult(
         .then(async (response) => {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (response.data.status === 'OK') {
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                for (let i = 0; i < response.data.results.votes.vote.positions.length; i+=1){
+                for (
+                    let i = 0;
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                    if (response.data.results.votes.vote.positions[i].name === speaker){
-                        vote = await response.data.results.votes.vote.positions[i].vote_position;
+                    i < response.data.results.votes.vote.positions.length;
+                    i += 1
+                ) {
+                    if (
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                        response.data.results.votes.vote.positions[i].name ===
+                        speaker
+                    ) {
+                        vote = await response.data.results.votes.vote.positions[
+                            i
+                        ].vote_position;
                     }
                 }
             }
