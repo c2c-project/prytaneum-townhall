@@ -51,7 +51,7 @@ export function getBillUrls(subjectUrl: string): Promise<string[]> {
                     response.data.num_results > 3
                         ? 3
                         : // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                        response.data.num_results;
+                          response.data.num_results;
                 // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
                 for (let i = 0; i < billLimit; i += 1) {
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
@@ -67,11 +67,11 @@ export function getBillUrls(subjectUrl: string): Promise<string[]> {
 export function getBill(
     billUrl: string
 ): Promise<{
-        summary: string;
-        congressGovLink: string;
-        votes: Vote[];
-        vote_position: string;
-    }> {
+    summary: string;
+    congressGovLink: string;
+    votes: Vote[];
+    vote_position: string;
+}> {
     const billInfo = {} as Promise<{
         summary: string;
         congressGovLink: string;
@@ -111,7 +111,7 @@ export function getVoteResult(
                 'X-API-Key': process.env.PROPUBLICA_API_KEY,
             },
         })
-        .then(async (response) => {
+        .then((response) => {
             // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
             if (response.data.status === 'OK') {
                 for (
@@ -125,9 +125,11 @@ export function getVoteResult(
                         response.data.results.votes.vote.positions[i].name ===
                         speaker
                     ) {
-                        vote = await response.data.results.votes.vote.positions[
-                            i
-                        ].vote_position;
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                        vote =
+                            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                            response.data.results.votes.vote.positions[i]
+                                .vote_position;
                     }
                 }
             }
