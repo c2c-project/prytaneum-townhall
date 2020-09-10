@@ -45,3 +45,23 @@ export interface QuestionDoc {
         timestamp: string | null; // ISO
     };
 }
+
+export interface Bill {
+    summary: string;
+    congressGovLink: string;
+    votes: Vote[];
+    vote_position: string;
+}
+
+export interface Vote {
+    chamber: string;
+    date: string;
+    time: string;
+    roll_call: string;
+    question: string;
+    results: string;
+    total_yes: number;
+    total_no: number;
+    total_not_voting: number;
+    api_url: string;
+}

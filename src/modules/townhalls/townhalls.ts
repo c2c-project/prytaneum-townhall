@@ -3,7 +3,13 @@ import { ObjectID } from 'mongodb';
 
 import { emit, transformers } from 'lib/rabbitmq';
 import Collections from 'db';
-import { TownhallForm, TownhallSettings } from 'types';
+import { TownhallForm, TownhallSettings, Bill } from 'types';
+import {
+    getSubjectUrl,
+    getBill,
+    getBillUrls,
+    getVoteResult,
+} from 'lib/propublica';
 
 export async function createTownhall(
     form: TownhallForm,
@@ -66,8 +72,55 @@ export async function getBillInfo(townhallId: string) {
     const townhall = await Collections.Townhalls().findOne({
         _id: new ObjectID(townhallId),
     });
+
     if (!townhall) throw new Error('Invalid Townhall ID');
 
+    let subject = '';
+
+    subject = await getSubjectUrl(townhall?.form.topic);
+    const billUrls: string[] = await getBillUrls(subject);
+    const allBills: Bill[] = [];
+    for (let i = 0; i < billUrls.length; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        allBills.push(await getBill(billUrls[i]));
+    }
+    let houseVote = '';
+    let senateVote = '';
+
+    let houseObj;
+    let senateObj;
+    for (let i = 0; i < allBills.length; i += 1) {
+        if (allBills[i].votes.length > 0) {
+            houseObj = allBills[i].votes.find((o) => o.chamber === 'House');
+            senateObj = allBills[i].votes.find((o) => o.chamber === 'Senate');
+
+            if (houseObj !== undefined) {
+                // eslint-disable-next-line no-await-in-loop
+                houseVote = await getVoteResult(
+                    houseObj?.api_url,
+                    townhall?.form.speaker
+                );
+            }
+
+            if (senateObj !== undefined) {
+                // eslint-disable-next-line no-await-in-loop
+                senateVote = await getVoteResult(
+                    senateObj?.api_url,
+                    townhall?.form.speaker
+                );
+            }
+         
+
+            if (houseVote !== '') {
+                allBills[i].vote_position = houseVote;
+            } else if (senateVote !== '') {
+                allBills[i].vote_position = senateVote;
+            } else {
+                allBills[i].vote_position = 'Not Found';
+            }
+        }
+    }
+
     // eventually after doing some other requests
-    return {};
+    return allBills;
 }

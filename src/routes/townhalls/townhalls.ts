@@ -1,5 +1,6 @@
 import express from 'express';
 import { ObjectID } from 'mongodb';
+import log from 'lib/log';
 
 import Collections from 'db';
 import {
