@@ -75,43 +75,127 @@ export async function getBillInfo(townhallId: string) {
 
     if (!townhall) throw new Error('Invalid Townhall ID');
 
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const subject = await getSubjectUrl(townhall?.form.topic);
-    const billUrls: string[] = await getBillUrls(subject);
-    const allBills: Bill[] = [];
-    for (let i = 0; i < billUrls.length; i += 1) {
+    const subjectData = subject.data.results[0].subjects[0].url_name;
+    const billUrls = await getBillUrls(subjectData);
+    const billArray = [];
+    let billLimit = 0;
+    if (billUrls.data.num_results !== 0) {
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+        billLimit =
+            billUrls.data.num_results > 3 ? 3 : billUrls.data.num_results;
+
+        for (let i = 0; i < billLimit; i += 1) {
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+            billArray.push(billUrls.data.results[i].bill_uri);
+        }
+    }
+    let allBills = [];
+    const billResponses: Bill[] = [];
+    const promises = billArray.map((url) => getBill(url));
+    allBills = await Promise.all(promises);
+    let promises3 = [];
+    let promises4 = [];
+    for (let i = 0; i < billArray.length; i += 1) {
         // eslint-disable-next-line no-await-in-loop
-        allBills.push(await getBill(billUrls[i]));
+        const object = {} as Bill;
+        object.congressGovLink = allBills[i].data.results[0].congressdotgov_url;
+        object.summary = allBills[i].data.results[0].summary;
+        object.votes = allBills[i].data.results[0].votes;
+        object.billId = allBills[i].data.results[0].bill_id;
+        object.vote_position = 'Not found';
+        billResponses.push(object);
     }
+    const houseUrls = [];
+    const senateUrls = [];
+    let houseResponse: string | any[] = [];
+    let senateResponse: string | any[] = [];
 
-    for (let i = 0; i < allBills.length; i += 1) {
-        let houseVote = '';
-        let senateVote = '';
-        const houseObj = allBills[i].votes.find((o) => o.chamber === 'House');
-        const senateObj = allBills[i].votes.find((o) => o.chamber === 'Senate');
-        if (houseObj !== undefined) {
-            // eslint-disable-next-line no-await-in-loop
-            houseVote = await getVoteResult(
-                houseObj?.api_url,
-                townhall?.form.speaker
-            );
+    for (let i = 0; i < billResponses.length; i += 1) {
+        const houseObj = billResponses[i].votes.find((o) => o.chamber === 'House');
+        const senateObj = billResponses[i].votes.find((o) => o.chamber === 'Senate');
+        if (houseObj?.api_url !== undefined) {
+            houseUrls.push(houseObj?.api_url);
         }
-
-        if (senateObj !== undefined) {
-            // eslint-disable-next-line no-await-in-loop
-            senateVote = await getVoteResult(
-                senateObj?.api_url,
-                townhall?.form.speaker
-            );
-        }
-
-        if (houseVote !== '') {
-            allBills[i].vote_position = houseVote;
-        } else if (senateVote !== '') {
-            allBills[i].vote_position = senateVote;
-        } else {
-            allBills[i].vote_position = 'Not Found';
+        if (senateObj?.api_url !== undefined) {
+            senateUrls.push(senateObj?.api_url);
         }
     }
 
-    return allBills;
+    if (houseUrls.length !== 0) {
+        promises3 = houseUrls.map((url) => getVoteResult(url));
+        houseResponse = await Promise.all(promises3);
+    }
+
+    if (senateUrls.length !== 0) {
+        promises4 = senateUrls.map((url) => getVoteResult(url));
+        senateResponse = await Promise.all(promises4);
+    }
+
+    for (let i = 0; i < billResponses.length; i += 1) {
+        for (let j = 0; j < houseResponse.length; j += 1) {
+            if (
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                houseResponse[j].data.results.votes.vote.bill.bill_id ===
+                billResponses[i].billId
+            ) {
+              
+                for (
+                    let y = 0;
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    y < houseResponse[j].data.results.votes.vote.positions.length;
+                    y += 1
+                ) {
+                    if (
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                        houseResponse[j].data.results.votes.vote.positions[y].name ===
+                        townhall?.form.speaker
+                    ) {
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                        billResponses[i].vote_position =
+                            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                            houseResponse[j].data.results.votes.vote.positions[
+                                y
+                            ].vote_position;
+                    }
+                }
+            }
+        }
+    }
+    for (let i = 0; i < billResponses.length; i += 1) {
+        for (let j = 0; j < senateResponse.length; j += 1) {
+            if (
+                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                senateResponse[j].data.results.votes.vote.bill.bill_id ===
+                billResponses[i].billId
+            ) {
+              
+                for (
+                    let y = 0;
+                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                    y < senateResponse[j].data.results.votes.vote.positions.length;
+                    y += 1
+                ) {
+                    if (
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                        senateResponse[j].data.results.votes.vote.positions[y].name ===
+                        townhall?.form.speaker
+                    ) {
+                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+                        billResponses[i].vote_position =
+                            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+                            senateResponse[j].data.results.votes.vote.positions[
+                                y
+                            ].vote_position;
+                    }
+                }
+            }
+        }
+    }
+
+  
+    return billResponses;
 }
+
+

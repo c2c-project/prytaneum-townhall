@@ -51,6 +51,7 @@ export interface Bill {
     congressGovLink: string;
     votes: Vote[];
     vote_position: string;
+    billId: string;
 }
 
 export interface Vote {
