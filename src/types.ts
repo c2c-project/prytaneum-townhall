@@ -1,5 +1,6 @@
 import { ObjectId } from 'mongodb';
 
+
 // TODO: speaker type
 interface Speaker {
     propublicaID: string;
@@ -55,6 +56,7 @@ export interface Bill {
 }
 
 export interface Vote {
+    // full interface can be found at https://projects.propublica.org/api-docs/congress-api/bills/#get-a-specific-bill
     chamber: string;
     date: string;
     time: string;

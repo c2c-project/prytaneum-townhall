@@ -4,11 +4,13 @@ import { ObjectID } from 'mongodb';
 import { emit, transformers } from 'lib/rabbitmq';
 import Collections from 'db';
 import { TownhallForm, TownhallSettings, Bill } from 'types';
+import { AxiosResponse } from 'axios';
 import {
     getSubjectUrl,
     getBill,
     getBillUrls,
     getVoteResult,
+    RollCallVoteResponse,
 } from 'lib/propublica';
 
 export async function createTownhall(
@@ -63,6 +65,32 @@ export function deleteTownhall(townhallId: string) {
         _id: new ObjectID(townhallId),
     });
 }
+// get determine vote position if the speaker is in house or senate, otherwise return not found
+export function getVotePosition(
+    billId: string,
+    chamber: AxiosResponse<RollCallVoteResponse>[],
+    speaker: string
+) {
+    for (let j = 0; j < chamber.length; j += 1) {
+        if (chamber[j].data.results.votes.vote.bill.bill_id === billId) {
+            for (
+                let y = 0;
+                y < chamber[j].data.results.votes.vote.positions.length;
+                y += 1
+            ) {
+                if (
+                    chamber[j].data.results.votes.vote.positions[y].name ===
+                    speaker
+                ) {
+                    return chamber[j].data.results.votes.vote.positions[y]
+                        .vote_position;
+                }
+            }
+        }
+    }
+
+    return 'Not found';
+}
 
 export function getTownhall(townhallId: string) {
     return Collections.Townhalls().findOne({ _id: new ObjectID(townhallId) });
@@ -75,30 +103,26 @@ export async function getBillInfo(townhallId: string) {
 
     if (!townhall) throw new Error('Invalid Townhall ID');
 
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-    const subject = await getSubjectUrl(townhall?.form.topic);
-    const subjectData = subject.data.results[0].subjects[0].url_name;
-    const billUrls = await getBillUrls(subjectData);
+    const subject = await getSubjectUrl(townhall.form.topic);
+    const subjectData = subject.data.results[0].subjects[0].url_name; // get first subject url name based on townhall topic
+    const billUrls = await getBillUrls(subjectData); // using subject url, we get a max of 20 recent bills related to subject
     const billArray = [];
     let billLimit = 0;
     if (billUrls.data.num_results !== 0) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         billLimit =
             billUrls.data.num_results > 3 ? 3 : billUrls.data.num_results;
-
         for (let i = 0; i < billLimit; i += 1) {
-            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-            billArray.push(billUrls.data.results[i].bill_uri);
+            billArray.push(billUrls.data.results[i].bill_uri); // getting up to three bill urls
         }
     }
-    let allBills = [];
+
     const billResponses: Bill[] = [];
-    const promises = billArray.map((url) => getBill(url));
-    allBills = await Promise.all(promises);
-    let promises3 = [];
-    let promises4 = [];
-    for (let i = 0; i < billArray.length; i += 1) {
-        // eslint-disable-next-line no-await-in-loop
+    const promises = billArray.map((url) => getBill(url)); // for each bill url we return bill info
+    const allBills = await Promise.all(promises);
+    let housePromise = [];
+    let senatePromise = [];
+    for (let i = 0; i < allBills.length; i += 1) {
+        // extract desired bill info for each bill
         const object = {} as Bill;
         object.congressGovLink = allBills[i].data.results[0].congressdotgov_url;
         object.summary = allBills[i].data.results[0].summary;
@@ -109,93 +133,53 @@ export async function getBillInfo(townhallId: string) {
     }
     const houseUrls = [];
     const senateUrls = [];
-    let houseResponse: string | any[] = [];
-    let senateResponse: string | any[] = [];
+    let houseResponse: AxiosResponse<RollCallVoteResponse>[] = [];
+    let senateResponse: AxiosResponse<RollCallVoteResponse>[] = [];
 
     for (let i = 0; i < billResponses.length; i += 1) {
-        const houseObj = billResponses[i].votes.find((o) => o.chamber === 'House');
-        const senateObj = billResponses[i].votes.find((o) => o.chamber === 'Senate');
+        const houseObj = billResponses[i].votes.find(
+            (vote) => vote.chamber === 'House' // find the first votes object with chamber house parameter
+        );
+        const senateObj = billResponses[i].votes.find(
+            (vote) => vote.chamber === 'Senate' // find the first votes object with chamber senate parameter
+        );
         if (houseObj?.api_url !== undefined) {
-            houseUrls.push(houseObj?.api_url);
+            houseUrls.push(houseObj.api_url); // get the corresponding votes api url
         }
         if (senateObj?.api_url !== undefined) {
-            senateUrls.push(senateObj?.api_url);
+            senateUrls.push(senateObj.api_url); // get the corresponding votes api url
         }
     }
 
     if (houseUrls.length !== 0) {
-        promises3 = houseUrls.map((url) => getVoteResult(url));
-        houseResponse = await Promise.all(promises3);
+        housePromise = houseUrls.map((url) => getVoteResult(url)); // using the vote api url, we get vote response from House
+        houseResponse = await Promise.all(housePromise);
     }
 
     if (senateUrls.length !== 0) {
-        promises4 = senateUrls.map((url) => getVoteResult(url));
-        senateResponse = await Promise.all(promises4);
+        senatePromise = senateUrls.map((url) => getVoteResult(url)); // using the vote api url, we get vote response from Senate
+        senateResponse = await Promise.all(senatePromise);
     }
 
     for (let i = 0; i < billResponses.length; i += 1) {
-        for (let j = 0; j < houseResponse.length; j += 1) {
-            if (
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                houseResponse[j].data.results.votes.vote.bill.bill_id ===
-                billResponses[i].billId
-            ) {
-              
-                for (
-                    let y = 0;
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                    y < houseResponse[j].data.results.votes.vote.positions.length;
-                    y += 1
-                ) {
-                    if (
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                        houseResponse[j].data.results.votes.vote.positions[y].name ===
-                        townhall?.form.speaker
-                    ) {
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                        billResponses[i].vote_position =
-                            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                            houseResponse[j].data.results.votes.vote.positions[
-                                y
-                            ].vote_position;
-                    }
-                }
-            }
+        // for each bill response object, we determine if the townhall speaker's vote position on that bill
+        if (billResponses[i].vote_position === 'Not found') {
+            billResponses[i].vote_position = getVotePosition(
+                billResponses[i].billId,
+                houseResponse,
+                townhall.form.speaker
+            );
         }
     }
     for (let i = 0; i < billResponses.length; i += 1) {
-        for (let j = 0; j < senateResponse.length; j += 1) {
-            if (
-                // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                senateResponse[j].data.results.votes.vote.bill.bill_id ===
-                billResponses[i].billId
-            ) {
-              
-                for (
-                    let y = 0;
-                    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                    y < senateResponse[j].data.results.votes.vote.positions.length;
-                    y += 1
-                ) {
-                    if (
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                        senateResponse[j].data.results.votes.vote.positions[y].name ===
-                        townhall?.form.speaker
-                    ) {
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                        billResponses[i].vote_position =
-                            // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-                            senateResponse[j].data.results.votes.vote.positions[
-                                y
-                            ].vote_position;
-                    }
-                }
-            }
+        if (billResponses[i].vote_position === 'Not Found') {
+            billResponses[i].vote_position = getVotePosition(
+                billResponses[i].billId,
+                senateResponse,
+                townhall.form.speaker
+            );
         }
     }
 
-  
     return billResponses;
 }
-
-

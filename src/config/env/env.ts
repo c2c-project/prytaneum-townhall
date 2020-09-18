@@ -9,7 +9,7 @@ export const defaults = {
     ORIGIN: 'localhost',
     DB_URL: 'mongodb://localhost:27017',
     AMQP_URL: 'amqp://rabbitmq:5672',
-    PROPUBLICA_API_KEY: process.env.PROPUBLICA_API_KEY,
+    PROPUBLICA_API_KEY: 'invalid_api_key',
 } as Readonly<Required<NodeJS.ProcessEnv>>;
 
 export function set(key: keyof NodeJS.ProcessEnv): string {
