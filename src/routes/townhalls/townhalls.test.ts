@@ -27,6 +27,12 @@ describe('townhall routes', () => {
             expect(status).toStrictEqual(200);
         });
     });
+    describe('/townhalls/:townhallId/bills', () => {
+        it('should be status 200', async () => {
+            const { status } = await request(app).post('/townhalls/123/bills');
+            expect(status).toStrictEqual(200);
+        });
+    });
     describe('/townhalls/:townhallId/delete', () => {});
     describe('/:townhallId/questions/set-current', () => {});
     describe('/:townhallId/questions/create', () => {});
@@ -34,4 +40,6 @@ describe('townhall routes', () => {
     describe('/:townhallId/questions/:questionId/delete', () => {});
     describe('/:townhallId/questions', () => {});
     describe('/:townhallId/questions/:questionId', () => {});
+    
+    
 });
