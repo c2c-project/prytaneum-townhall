@@ -11,7 +11,6 @@ beforeAll(async () => {
 });
 
 describe('townhall routes', () => {
-    const id = new ObjectID().toString();
     describe('/townhalls', () => {
         it('should be status 200', async () => {
             const { status } = await request(app).get('/townhalls');
@@ -21,7 +20,7 @@ describe('townhall routes', () => {
     describe('/townhalls/:townhallId', () => {
         it('should be status 200', async () => {
             const { status } = await request(app).get(
-                `/townhalls/${id}`
+                `/townhalls/${new ObjectID().toString()}`
             );
             expect(status).toStrictEqual(200);
         });
@@ -29,7 +28,9 @@ describe('townhall routes', () => {
     /// test returns 500 because townhall id is technically null until a townhall create post request is made
     describe('/townhalls/:townhallId/bills', () => {
         it('should be status 500', async () => {
-            const { status } = await request(app).get(`/townhalls/${id}/bills`);
+            const { status } = await request(app).get(
+                `/townhalls/${new ObjectID().toString()}/bills`
+            );
             expect(status).toStrictEqual(500);
         });
     });
