@@ -10,6 +10,7 @@ export const defaults = {
     DB_URL: 'mongodb://localhost:27017',
     AMQP_URL: 'amqp://rabbitmq:5672',
     PROPUBLICA_API_KEY: 'invalid_api_key',
+    OPEN_STATE_API_KEY: 'invalid_api_key',
 } as Readonly<Required<NodeJS.ProcessEnv>>;
 
 export function set(key: keyof NodeJS.ProcessEnv): string {
@@ -35,6 +36,7 @@ const resilientEnv = {
     DB_URL: set('DB_URL'),
     AMQP_URL: set('AMQP_URL'),
     PROPUBLICA_API_KEY: set('PROPUBLICA_API_KEY'),
+    OPEN_STATE_API_KEY: set('OPEN_STATE_API_KEY'),
 } as Required<NodeJS.ProcessEnv>;
 
 export default resilientEnv as Readonly<Required<NodeJS.ProcessEnv>>;

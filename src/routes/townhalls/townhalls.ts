@@ -1,5 +1,6 @@
 import express from 'express';
 import { ObjectID } from 'mongodb';
+import env from 'config/env';
 
 import Collections from 'db';
 import {

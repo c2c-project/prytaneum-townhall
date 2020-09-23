@@ -1,6 +1,5 @@
 import { ObjectId } from 'mongodb';
 
-
 // TODO: speaker type
 interface Speaker {
     propublicaID: string;
@@ -53,6 +52,7 @@ export interface Bill {
     votes: Vote[];
     vote_position: string;
     billId: string;
+    localVote: LocalVote[];
 }
 
 export interface Vote {
@@ -67,4 +67,10 @@ export interface Vote {
     total_no: number;
     total_not_voting: number;
     api_url: string;
+}
+
+export interface LocalVote {
+    // https://v3.openstates.org/docs#/
+    option: string;
+    voter_name: string;
 }

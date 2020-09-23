@@ -11,7 +11,10 @@ import {
     getBillUrls,
     getVoteResult,
     RollCallVoteResponse,
+    getSenator,
+    getCongressMan,
 } from 'lib/propublica';
+import { getPersonInfo, getLocalBills } from 'lib/openState';
 
 export async function createTownhall(
     form: TownhallForm,
@@ -102,83 +105,195 @@ export async function getBillInfo(townhallId: string) {
     });
 
     if (!townhall) throw new Error('Invalid Townhall ID');
-
-    const subject = await getSubjectUrl(townhall.form.topic);
-    const subjectData = subject.data.results[0].subjects[0].url_name; // get first subject url name based on townhall topic
-    const billUrls = await getBillUrls(subjectData); // using subject url, we get a max of 20 recent bills related to subject
-    const billArray = [];
-    let billLimit = 0;
-    if (billUrls.data.num_results !== 0) {
-        billLimit =
-            billUrls.data.num_results > 3 ? 3 : billUrls.data.num_results;
-        for (let i = 0; i < billLimit; i += 1) {
-            billArray.push(billUrls.data.results[i].bill_uri); // getting up to three bill urls
-        }
-    }
+    let isSenator = false;
+    let isCongressMan = false;
+    let isLocal = false;
+    const senateMemberReponse = await getSenator();
+    const congressMemberResponse = await getCongressMan();
+    const localResponse = await getPersonInfo(townhall.form.speaker);
 
     const billResponses: Bill[] = [];
-    const promises = billArray.map((url) => getBill(url)); // for each bill url we return bill info
-    const allBills = await Promise.all(promises);
-    let housePromise = [];
-    let senatePromise = [];
-    for (let i = 0; i < allBills.length; i += 1) {
-        // extract desired bill info for each bill
+    for (
+        let i = 0;
+        i < congressMemberResponse.data.results[0].members.length;
+        i += 1
+    ) {
+        const name = `${congressMemberResponse.data.results[0].members[i].first_name} ${congressMemberResponse.data.results[0].members[i].last_name}`;
+        if (name === townhall.form.speaker) {
+            isCongressMan = true;
+        }
+    }
+    if (!isCongressMan) {
+        for (
+            let i = 0;
+            i < senateMemberReponse.data.results[0].members.length;
+            i += 1
+        ) {
+            const name = `${senateMemberReponse.data.results[0].members[i].first_name} ${senateMemberReponse.data.results[0].members[i].last_name}`;
+            if (name === townhall.form.speaker) {
+                isSenator = true;
+            }
+        }
+    }
+    if (localResponse.data.results.length !== 0) {
+        isLocal = true;
+    }
+    if (isCongressMan || isSenator) {
+        const subject = await getSubjectUrl(townhall.form.topic);
+        const subjectData = subject.data.results[0].subjects[0].url_name; // get first subject url name based on townhall topic
+        const billUrls = await getBillUrls(subjectData); // using subject url, we get a max of 20 recent bills related to subject
+        const billArray = [];
+        let billLimit = 0;
+        if (billUrls.data.num_results !== 0) {
+            billLimit =
+                billUrls.data.num_results > 3 ? 3 : billUrls.data.num_results;
+            for (let i = 0; i < billLimit; i += 1) {
+                billArray.push(billUrls.data.results[i].bill_uri); // getting up to three bill urls
+            }
+        }
+
+        const promises = billArray.map((url) => getBill(url)); // for each bill url we return bill info
+        const allBills = await Promise.all(promises);
+        let housePromise = [];
+        let senatePromise = [];
+        for (let i = 0; i < allBills.length; i += 1) {
+            // extract desired bill info for each bill
+            const object = {} as Bill;
+            object.congressGovLink =
+                allBills[i].data.results[0].congressdotgov_url;
+            object.summary = allBills[i].data.results[0].summary;
+            object.votes = allBills[i].data.results[0].votes;
+            object.billId = allBills[i].data.results[0].bill_id;
+            object.vote_position = 'Not found';
+            billResponses.push(object);
+        }
+        const houseUrls = [];
+        const senateUrls = [];
+        let houseResponse: AxiosResponse<RollCallVoteResponse>[] = [];
+        let senateResponse: AxiosResponse<RollCallVoteResponse>[] = [];
+
+        for (let i = 0; i < billResponses.length; i += 1) {
+            const houseObj = billResponses[i].votes.find(
+                (vote) => vote.chamber === 'House' // find the first votes object with chamber house parameter
+            );
+            const senateObj = billResponses[i].votes.find(
+                (vote) => vote.chamber === 'Senate' // find the first votes object with chamber senate parameter
+            );
+            if (houseObj?.api_url !== undefined) {
+                houseUrls.push(houseObj.api_url); // get the corresponding votes api url
+            }
+            if (senateObj?.api_url !== undefined) {
+                senateUrls.push(senateObj.api_url); // get the corresponding votes api url
+            }
+        }
+
+        if (houseUrls.length !== 0) {
+            housePromise = houseUrls.map((url) => getVoteResult(url)); // using the vote api url, we get vote response from House
+            houseResponse = await Promise.all(housePromise);
+        }
+
+        if (senateUrls.length !== 0) {
+            senatePromise = senateUrls.map((url) => getVoteResult(url)); // using the vote api url, we get vote response from Senate
+            senateResponse = await Promise.all(senatePromise);
+        }
+
+        for (let i = 0; i < billResponses.length; i += 1) {
+            // for each bill response object, we determine if the townhall speaker's vote position on that bill
+            if (billResponses[i].vote_position === 'Not found') {
+                billResponses[i].vote_position = getVotePosition(
+                    billResponses[i].billId,
+                    houseResponse,
+                    townhall.form.speaker
+                );
+            }
+        }
+        for (let i = 0; i < billResponses.length; i += 1) {
+            if (billResponses[i].vote_position === 'Not Found') {
+                billResponses[i].vote_position = getVotePosition(
+                    billResponses[i].billId,
+                    senateResponse,
+                    townhall.form.speaker
+                );
+            }
+        }
+    } else if (isLocal) {
+        // if speaker is not in federal government but in a local government
+        const jurisdiction = localResponse.data.results[0].jurisdiction.name;
+        const lastName = townhall.form.speaker.split(' ').pop()?.toUpperCase();
+
+        const localBillResponse = await getLocalBills(
+            jurisdiction,
+            townhall.form.topic
+        ); // get bills based on jurisdiction and subject
+        let localBillLimit = 0;
+
+        if (localBillResponse.data.results.length > 0) {
+            localBillLimit =
+                localBillResponse.data.results.length > 3
+                    ? 3
+                    : localBillResponse.data.results.length; // up to three bills
+        }
+        for (let i = 0; i < localBillLimit; i += 1) {
+            // extract desired bill info for each bill
+            const object = {} as Bill;
+            const summary1 = localBillResponse.data.results[i].title;
+
+            let summary2 = '';
+            if (
+                localBillResponse.data.results[i].extras.impact_clause !==
+                undefined
+            ) {
+                summary2 =
+                    localBillResponse.data.results[i].extras.impact_clause;
+            }
+
+            object.summary =
+                summary2.length > summary1.length ? summary2 : summary1; // summary will be the longer of the two attirbutes since each attirbute does not return consistent results
+
+            if (localBillResponse.data.results[i].votes.length !== 0) {
+                for (
+                    let j = 0;
+                    j < localBillResponse.data.results[i].votes.length;
+                    j += 1
+                ) {
+                    for (
+                        let y = 0;
+                        y <
+                        localBillResponse.data.results[i].votes[j].votes.length;
+                        y += 1
+                    ) {
+                        const voteName =
+                            localBillResponse.data.results[i].votes[j].votes[y]
+                                .voter_name;
+                        const firstWord = voteName.substr(
+                            0,
+                            voteName.indexOf(' ')
+                        );
+                        if (firstWord === lastName) { // api returns uppercase version of voter name and check if it equal to the upper case version of speaker
+                            object.localVote =
+                                localBillResponse.data.results[i].votes[
+                                    j
+                                ].votes;
+                            object.vote_position =
+                                localBillResponse.data.results[i].votes[
+                                    j
+                                ].votes[y].option;
+                        }
+                    }
+                }
+            } else {
+                object.localVote = [];
+            }
+            object.billId = localBillResponse.data.results[i].id;
+            billResponses.push(object);
+        }
+    } else { // if speaker is not found in washington or local government
         const object = {} as Bill;
-        object.congressGovLink = allBills[i].data.results[0].congressdotgov_url;
-        object.summary = allBills[i].data.results[0].summary;
-        object.votes = allBills[i].data.results[0].votes;
-        object.billId = allBills[i].data.results[0].bill_id;
+        object.congressGovLink = 'null';
+        object.summary = 'null';
+        object.billId = 'null';
         object.vote_position = 'Not found';
         billResponses.push(object);
-    }
-    const houseUrls = [];
-    const senateUrls = [];
-    let houseResponse: AxiosResponse<RollCallVoteResponse>[] = [];
-    let senateResponse: AxiosResponse<RollCallVoteResponse>[] = [];
-
-    for (let i = 0; i < billResponses.length; i += 1) {
-        const houseObj = billResponses[i].votes.find(
-            (vote) => vote.chamber === 'House' // find the first votes object with chamber house parameter
-        );
-        const senateObj = billResponses[i].votes.find(
-            (vote) => vote.chamber === 'Senate' // find the first votes object with chamber senate parameter
-        );
-        if (houseObj?.api_url !== undefined) {
-            houseUrls.push(houseObj.api_url); // get the corresponding votes api url
-        }
-        if (senateObj?.api_url !== undefined) {
-            senateUrls.push(senateObj.api_url); // get the corresponding votes api url
-        }
-    }
-
-    if (houseUrls.length !== 0) {
-        housePromise = houseUrls.map((url) => getVoteResult(url)); // using the vote api url, we get vote response from House
-        houseResponse = await Promise.all(housePromise);
-    }
-
-    if (senateUrls.length !== 0) {
-        senatePromise = senateUrls.map((url) => getVoteResult(url)); // using the vote api url, we get vote response from Senate
-        senateResponse = await Promise.all(senatePromise);
-    }
-
-    for (let i = 0; i < billResponses.length; i += 1) {
-        // for each bill response object, we determine if the townhall speaker's vote position on that bill
-        if (billResponses[i].vote_position === 'Not found') {
-            billResponses[i].vote_position = getVotePosition(
-                billResponses[i].billId,
-                houseResponse,
-                townhall.form.speaker
-            );
-        }
-    }
-    for (let i = 0; i < billResponses.length; i += 1) {
-        if (billResponses[i].vote_position === 'Not Found') {
-            billResponses[i].vote_position = getVotePosition(
-                billResponses[i].billId,
-                senateResponse,
-                townhall.form.speaker
-            );
-        }
     }
 
     return billResponses;

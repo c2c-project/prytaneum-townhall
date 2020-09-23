@@ -66,6 +66,16 @@ export interface RollCallVoteResponse {
     };
 }
 
+export interface MemberResponse {
+    results: MemberResponseResults[];
+}
+export interface MemberResponseResults{
+    members: memberList[];
+}
+export interface memberList{
+    first_name: string;
+    last_name: string;
+}
 export function getSubjectUrl(
     topic: string
 ): AxiosPromise<PropublicaSubjectUrlResponse> {
@@ -93,6 +103,19 @@ export function getVoteResult(
     voteUrl: string
 ): AxiosPromise<RollCallVoteResponse> {
     return axios.get<RollCallVoteResponse>(voteUrl, {
+        headers: { 'X-API-Key': env.PROPUBLICA_API_KEY },
+    });
+}
+
+export function getSenator(): AxiosPromise<MemberResponse> {
+    const apiUrl = 'https://api.propublica.org/congress/v1/116/senate/members.json';
+    return axios.get<MemberResponse>(apiUrl, {
+        headers: { 'X-API-Key': env.PROPUBLICA_API_KEY },
+    });
+}
+export function getCongressMan(): AxiosPromise<MemberResponse> {
+    const apiUrl = 'https://api.propublica.org/congress/v1/116/house/members.json';
+    return axios.get<MemberResponse>(apiUrl, {
         headers: { 'X-API-Key': env.PROPUBLICA_API_KEY },
     });
 }
