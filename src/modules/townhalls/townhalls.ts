@@ -221,18 +221,29 @@ export async function getBillInfo(townhallId: string) {
         const jurisdiction = localResponse.data.results[0].jurisdiction.name;
         const lastName = townhall.form.speaker.split(' ').pop()?.toUpperCase();
 
-        const localBillResponse = await getLocalBills(
+        let localBillResponse = await getLocalBills(
             jurisdiction,
             townhall.form.topic
         ); // get bills based on jurisdiction and subject
+
         let localBillLimit = 0;
 
-        if (localBillResponse.data.results.length > 0) {
-            localBillLimit =
-                localBillResponse.data.results.length > 3
-                    ? 3
-                    : localBillResponse.data.results.length; // up to three bills
+        if (localBillResponse.data.results.length === 0) { // converting jurisdiction capitalization since API subject query is very strict
+            localBillResponse = await getLocalBills(
+                jurisdiction.toUpperCase(),
+                townhall.form.topic
+            );
+            if (localBillResponse.data.results.length === 0){
+                localBillResponse = await getLocalBills(
+                    jurisdiction.toLowerCase(),
+                    townhall.form.topic
+                );  
+            }
         }
+        localBillLimit =
+            localBillResponse.data.results.length > 3
+                ? 3
+                : localBillResponse.data.results.length; // up to three bills
         for (let i = 0; i < localBillLimit; i += 1) {
             // extract desired bill info for each bill
             const object = {} as Bill;
@@ -269,7 +280,8 @@ export async function getBillInfo(townhallId: string) {
                             0,
                             voteName.indexOf(' ')
                         );
-                        if (firstWord === lastName) { // api returns uppercase version of voter name and check if it equal to the upper case version of speaker
+                        if (firstWord === lastName) {
+                            // api returns uppercase version of voter name and check if it equal to the upper case version of speaker
                             object.localVote =
                                 localBillResponse.data.results[i].votes[
                                     j
@@ -287,7 +299,8 @@ export async function getBillInfo(townhallId: string) {
             object.billId = localBillResponse.data.results[i].id;
             billResponses.push(object);
         }
-    } else { // if speaker is not found in washington or local government
+    } else {
+        // if speaker is not found in washington or local government
         const object = {} as Bill;
         object.congressGovLink = 'null';
         object.summary = 'null';
